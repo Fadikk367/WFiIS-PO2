@@ -1,36 +1,34 @@
 import java.util.Random;
 import java.util.Scanner;
-import java.awt.Point;
+import java.util.Map;
+import static java.util.Map.entry;
 
-interface CheckStep {
-  boolean test(char[][] board, int i0, int j0, Direction dir);
-}
 
 public class Game {
-  private char[][] board;
-  private int nx;
-  private int ny;
-  private double p;
-  private int playerX;
-  private int playerY;
+  private Maze maze;
+  private Point player;
+  private Point defaultPlayerPosition;
   private Point goalPoint;
+  private Map<Character, Option> gameOptionsByCharacters = Map.ofEntries(
+    entry('a', Option.LEFT),
+    entry('d', Option.RIGHT),
+    entry('w', Option.UP),
+    entry('s', Option.DOWN),
+    entry('r', Option.RESET),
+    entry('q', Option.EXIT)
+  );
 
   public Game(int nx, int ny, double p) {
-    this.board = new char[ny][nx];
-    this.nx = nx;
-    this.ny = ny;
-    this.p = p;
-    this.playerY = ny - 2;
-    this.playerX = 1;
-
-    this.goalPoint = new Point(0, this.nx / 2);
-
-    this.initialize();
+    this.maze = new Maze(nx, ny, p);
+    this.player = new Point(1, ny - 2);
+    this.defaultPlayerPosition = new Point(1, ny - 2);
+    this.goalPoint = new Point(nx / 2, 0);
   }
 
   public void start() {
     printManual();
-
+    this.maze.drawPlayer(this.player);
+    this.maze.printBoardToConsole();
     runGameLoop();
   }
 
@@ -43,29 +41,31 @@ public class Game {
 
   private void runGameLoop() {
     Scanner s = new Scanner(System.in);
-    char input;
+    char inputChar;
 
     while (true) {
-      printBoard();
       System.out.print("Wybierz opcje: ");
-      input = s.next().charAt(0);
+      inputChar = s.next().charAt(0);
 
-      Option option = parseUserInput(input);
+      Option option = this.gameOptionsByCharacters.get(inputChar);
       Direction direction = option.getDirection();
 
       if (direction != null) {
-        movePlayer(direction, (char[][] board, int prevX, int prevY, Direction dir) -> (
-          board[prevY + dir.getY()][prevX + dir.getX()] == 'X' ? false : true
-        ));
+        movePlayer(direction);
       }
+
+      if (option == Option.RESET) {
+        this.maze.resetBoard();
+        this.player.move(this.defaultPlayerPosition);
+        this.maze.drawPlayer(this.player);
+      }
+
+      this.maze.printBoardToConsole();
 
       if (isPlayerAtGoalPoint()) {
         System.out.println("WYGRANA!!!");
         break;
       }
-
-      if (option == Option.RESET)
-        fillBoardInterior();
 
       if (option == Option.EXIT)
         break;
@@ -75,98 +75,22 @@ public class Game {
   }
 
   private boolean isPlayerAtGoalPoint() {
-    return (this.playerX == this.goalPoint.getY() && this.playerY == this.goalPoint.getX());
+    return (this.player.getX() == this.goalPoint.getX() && this.player.getY() == this.goalPoint.getY());
   }
 
-  private Option parseUserInput(char input) {
-    Option parsedOption = null;
-
-    switch(input) {
-      case 'a':
-        parsedOption = Option.LEFT;
-        break;
-      case 'd':
-        parsedOption = Option.RIGHT;
-        break;
-      case 'w':
-        parsedOption = Option.UP;
-        break;
-      case 's':
-        parsedOption = Option.DOWN;
-        break;
-      case 'r':
-        parsedOption = Option.RESET;
-        break;
-      case 'q':
-        parsedOption = Option.EXIT;
-        break;
-      default:
-        break;
-    }
-    return parsedOption;
-  }
-
-  private void movePlayer(Direction direction, CheckStep isValidMove) {
-    if (isValidMove.test(this.board, this.playerX, this.playerY, direction)) {
-      int x = direction.getX();
-      int y = direction.getY();
-  
-      clearPreviousPlayerPosition();
-  
-      this.playerX += x;
-      this.playerY += y;
+  private void movePlayer(Direction direction) {
+    if (this.maze.isValidMove(
+      this.player, 
+      direction, 
+      (char[][] board, int prevX, int prevY, Direction dir) -> (
+        board[prevY + dir.getY()][prevX + dir.getX()] == 'X' ? false : true
+      ))
+    ) {
+      this.maze.clearPlayerPreviousPosition(this.player);
+      this.player.translate(direction.getX(), direction.getY());
+      this.maze.drawPlayer(this.player);
     } else {
       System.out.println("NIE UDALO SIE WYKONAC TAKIEGO RUCHU");
-    }
-  }
-
-  private void drawPlayer() {
-    this.board[this.playerY][this.playerX] = 'o';
-  }
-
-  private void clearPreviousPlayerPosition() {
-    this.board[this.playerY][this.playerX] = ' ';
-  }
-
-  private void initialize() {
-    fillOuterWall();
-    fillBoardInterior();
-  }
-
-
-  private void fillOuterWall() {
-    for (int j = 0; j < this.ny; j++) {
-      this.board[j][0] = 'X';
-      this.board[j][this.nx - 1] = 'X';
-    }
-
-    for (int i = 0; i < this.nx; i++) {
-      this.board[0][i] = 'X';
-      this.board[this.ny - 1][i] = 'X';
-    }
-
-    int centerPoint = this.nx / 2; 
-    this.board[0][centerPoint] = ' ';
-  }
-
-  private void fillBoardInterior() {
-    Random generator = new Random();
-
-    for (int j = 1; j < this.ny - 1; j++) {
-      for (int i = 1; i < this.nx - 1; i++) {
-        this.board[j][i] = generator.nextInt(1000) > this.p*1000 ? ' ' : 'X';
-      }
-    }
-  }
-
-  public void printBoard() {
-    drawPlayer();
-
-    for (int j = 0; j < this.ny; j++) {
-      for (int i = 0; i < this.nx; i++) {
-        System.out.print(this.board[j][i]);
-      }
-      System.out.println();
     }
   }
 }
