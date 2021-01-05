@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 
 
 public class FunctionData {
@@ -49,16 +50,28 @@ public class FunctionData {
 
       buffWriter.close();
     } catch(IOException e) {
-      System.out.println("Failed to save result to file properly");
+      System.out.println("Nie udalo sie poprawnie zapisac danych do pliku");
       System.exit(1);
     }
-
-
   }
+
+  public static FunctionData fromFile(Path path) throws IOException {
+    var dataReader = Files.newBufferedReader(path);
+    var functionData = new FunctionData();
+  
+    dataReader.lines().forEach(line -> {
+      String[] elements = line.trim().split("\\s+");
+        
+      functionData.addPoint(Double.parseDouble(elements[0]), Double.parseDouble(elements[1]));
+    });
+
+    return functionData;
+  }
+
 
   public static FunctionData sumFunctions(FunctionData f, FunctionData g) throws Exception {
     if (g.size() != f.size()) {
-      throw new Exception("Niezgodne długości danych dla sumowanych funckji");
+      throw new Exception("Niezgodne dlugosci danych dla sumowanych funckji");
     }
 
     var resultFunctionData = new FunctionData();
@@ -68,12 +81,12 @@ public class FunctionData {
       var p2 = g.getPoint(i);
 
       if (p1.getX() != p2.getX()) {
-        throw new Exception("Niezgodne wartości x dla odpowiadajacych sobie punktów funkcji");
+        throw new Exception("Niezgodne wartosci x dla odpowiadajacych sobie punktow funkcji");
       }
 
       resultFunctionData.addPoint(new Point2D.Double(p1.getX(), p1.getY() + p2.getY()));
     }
 
     return resultFunctionData;
-  } 
+  }
 }
